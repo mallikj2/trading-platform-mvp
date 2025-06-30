@@ -1,10 +1,13 @@
 package com.example.tradingplatformmvp.service;
 
+import com.example.tradingplatformmvp.dto.TradeExecutionDto;
 import com.example.tradingplatformmvp.model.TradingSignal;
 import com.example.tradingplatformmvp.model.TradingSignal.SignalType;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -13,6 +16,12 @@ public class OrderManagementService {
     // Simulated portfolio: symbol -> quantity
     private final ConcurrentHashMap<String, Double> portfolio = new ConcurrentHashMap<>();
     private double cash = 10000.0; // Initial cash
+
+    private final KafkaTemplate<String, TradeExecutionDto> kafkaTemplate;
+
+    public OrderManagementService(KafkaTemplate<String, TradeExecutionDto> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
 
     @KafkaListener(topics = "trading-signals-topic", groupId = "trading-platform-group")
     public void consumeTradingSignal(TradingSignal signal) {
@@ -34,7 +43,19 @@ public class OrderManagementService {
                 cash -= tradeAmount;
                 System.out.println(String.format("SIMULATED BUY: %s %.2f units. New Cash: %.2f, Portfolio: %s",
                         signal.getSymbol(), quantity, cash, portfolio));
-                // Publish a TradeExecution event to Kafka (future phase)
+
+                // Publish a TradeExecution event to Kafka
+                TradeExecutionDto tradeExecution = new TradeExecutionDto();
+                tradeExecution.setSymbol(signal.getSymbol());
+                tradeExecution.setTimestamp(LocalDateTime.now());
+                tradeExecution.setTradeType("BUY");
+                tradeExecution.setPrice(currentPrice);
+                tradeExecution.setQuantity(quantity);
+                tradeExecution.setStrategyName(signal.getStrategyName());
+                tradeExecution.setCurrentCash(cash);
+                // tradeExecution.setCurrentPortfolioValue(calculatePortfolioValue()); // Implement this for real value
+                kafkaTemplate.send("trade-executions-topic", tradeExecution.getSymbol(), tradeExecution);
+
             } else {
                 System.out.println("SIMULATED BUY FAILED: Insufficient cash for " + signal.getSymbol());
             }
@@ -46,7 +67,19 @@ public class OrderManagementService {
                 cash += tradeAmount;
                 System.out.println(String.format("SIMULATED SELL: %s %.2f units. New Cash: %.2f, Portfolio: %s",
                         signal.getSymbol(), quantityToSell, cash, portfolio));
-                // Publish a TradeExecution event to Kafka (future phase)
+
+                // Publish a TradeExecution event to Kafka
+                TradeExecutionDto tradeExecution = new TradeExecutionDto();
+                tradeExecution.setSymbol(signal.getSymbol());
+                tradeExecution.setTimestamp(LocalDateTime.now());
+                tradeExecution.setTradeType("SELL");
+                tradeExecution.setPrice(currentPrice);
+                tradeExecution.setQuantity(quantityToSell);
+                tradeExecution.setStrategyName(signal.getStrategyName());
+                tradeExecution.setCurrentCash(cash);
+                // tradeExecution.setCurrentPortfolioValue(calculatePortfolioValue()); // Implement this for real value
+                kafkaTemplate.send("trade-executions-topic", tradeExecution.getSymbol(), tradeExecution);
+
             } else {
                 System.out.println("SIMULATED SELL FAILED: Insufficient holdings for " + signal.getSymbol());
             }

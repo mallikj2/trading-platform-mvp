@@ -30,6 +30,19 @@ services:
     depends_on:
       - zookeeper
 
+  postgres:
+    image: postgres:13-alpine
+    hostname: postgres
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: tradingdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   spring-boot-app:
     build:
       context: .
@@ -39,9 +52,13 @@ services:
       - "8080:8080"
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      ALPHAVANTAGE_API_KEY: S1371TBMC1DNATIX # Replace with your actual key
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tradingdb
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      ALPHAVANTAGE_API_KEY: YOUR_ALPHA_VANTAGE_API_KEY # Replace with your actual key
     depends_on:
       - kafka
+      - postgres
 
   ml-service:
     build:
