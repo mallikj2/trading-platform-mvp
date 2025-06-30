@@ -14,7 +14,7 @@ public class MlBasedStrategy implements TradingStrategy {
     // This strategy will directly consume MlPredictionDto, so historicalData and currentData are less relevant here
     // However, the interface requires them, so we'll keep them for now.
     @Override
-    public List<TradingSignal> generateSignals(List<StockData> historicalData, StockData currentData) {
+    public List<TradingSignal> generateSignals(List<StockData> historicalData, StockData currentData, String parametersJson) {
         // This method will not be directly called by SignalGenerationService for ML predictions
         // ML predictions will be consumed by a separate KafkaListener in SignalGenerationService
         return new ArrayList<>();

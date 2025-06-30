@@ -3,6 +3,7 @@ package com.example.tradingplatformmvp.strategy;
 import com.example.tradingplatformmvp.model.StockData;
 import com.example.tradingplatformmvp.model.TradingSignal;
 import com.example.tradingplatformmvp.service.TechnicalAnalysisService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.indicators.SMAIndicator;
@@ -10,27 +11,41 @@ import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class SmaCrossoverStrategy implements TradingStrategy {
 
     private final TechnicalAnalysisService technicalAnalysisService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Store last SMA values for each symbol to detect crossovers
     private final ConcurrentHashMap<String, Double> lastShortSma = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Double> lastLongSma = new ConcurrentHashMap<>();
-
-    private final int shortSmaPeriod = 5; // Example short period
-    private final int longSmaPeriod = 20; // Example long period
 
     public SmaCrossoverStrategy(TechnicalAnalysisService technicalAnalysisService) {
         this.technicalAnalysisService = technicalAnalysisService;
     }
 
     @Override
-    public List<TradingSignal> generateSignals(List<StockData> historicalData, StockData currentData) {
+    public List<TradingSignal> generateSignals(List<StockData> historicalData, StockData currentData, String parametersJson) {
         List<TradingSignal> signals = new ArrayList<>();
+
+        int shortSmaPeriod = 5; // Default
+        int longSmaPeriod = 20; // Default
+
+        try {
+            Map<String, Integer> params = objectMapper.readValue(parametersJson, Map.class);
+            if (params.containsKey("shortSma")) {
+                shortSmaPeriod = params.get("shortSma");
+            }
+            if (params.containsKey("longSma")) {
+                longSmaPeriod = params.get("longSma");
+            }
+        } catch (Exception e) {
+            System.err.println("Error parsing SMA Crossover strategy parameters: " + e.getMessage());
+        }
 
         // Add the current incoming data point to the historical data for analysis
         List<StockData> dataForAnalysis = new ArrayList<>(historicalData);
@@ -67,7 +82,7 @@ public class SmaCrossoverStrategy implements TradingStrategy {
                 buySignal.setTimestamp(currentData.getTimestamp());
                 buySignal.setSignalType(TradingSignal.SignalType.BUY);
                 buySignal.setStrategyName(getName());
-                buySignal.setDescription(String.format("BUY: Short SMA (%.2f) crossed above Long SMA (%.2f)", currentShortSma, currentLongSma));
+                buySignal.setDescription(String.format("BUY: Short SMA (%d) crossed above Long SMA (%d)", shortSmaPeriod, longSmaPeriod));
                 signals.add(buySignal);
             }
             // Sell signal: Short SMA crosses below Long SMA
@@ -77,7 +92,7 @@ public class SmaCrossoverStrategy implements TradingStrategy {
                 sellSignal.setTimestamp(currentData.getTimestamp());
                 sellSignal.setSignalType(TradingSignal.SignalType.SELL);
                 sellSignal.setStrategyName(getName());
-                sellSignal.setDescription(String.format("SELL: Short SMA (%.2f) crossed below Long SMA (%.2f)", currentShortSma, currentLongSma));
+                sellSignal.setDescription(String.format("SELL: Short SMA (%d) crossed below Long SMA (%d)", shortSmaPeriod, longSmaPeriod));
                 signals.add(sellSignal);
             }
         }

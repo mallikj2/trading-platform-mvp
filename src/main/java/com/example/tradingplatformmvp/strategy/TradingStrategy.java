@@ -6,6 +6,6 @@ import com.example.tradingplatformmvp.model.TradingSignal;
 import java.util.List;
 
 public interface TradingStrategy {
-    List<TradingSignal> generateSignals(List<StockData> historicalData, StockData currentData);
+    List<TradingSignal> generateSignals(List<StockData> historicalData, StockData currentData, String parametersJson);
     String getName();
 }

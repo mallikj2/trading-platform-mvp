@@ -70,7 +70,7 @@ public class SignalGenerationService {
                     currentStockData.setClose(indicatorDto.getSma()); // Using SMA as close for strategy input
                     currentStockData.setVolume(0); // Placeholder
 
-                    List<TradingSignal> signals = strategy.generateSignals(historicalData, currentStockData);
+                    List<TradingSignal> signals = strategy.generateSignals(historicalData, currentStockData, config.getParameters());
 
                     for (TradingSignal signal : signals) {
                         tradingSignalRepository.save(signal);
