@@ -1,10 +1,13 @@
 package com.example.tradingplatformmvp;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -14,11 +17,19 @@ public class StockController {
     private final StockDataRepository stockDataRepository;
     private final TechnicalAnalysisService technicalAnalysisService;
     private final DataIngestionService dataIngestionService;
+    private final BacktestingService backtestingService;
+    private final BacktestResultRepository backtestResultRepository;
 
-    public StockController(StockDataRepository stockDataRepository, TechnicalAnalysisService technicalAnalysisService, DataIngestionService dataIngestionService) {
+    public StockController(StockDataRepository stockDataRepository,
+                           TechnicalAnalysisService technicalAnalysisService,
+                           DataIngestionService dataIngestionService,
+                           BacktestingService backtestingService,
+                           BacktestResultRepository backtestResultRepository) {
         this.stockDataRepository = stockDataRepository;
         this.technicalAnalysisService = technicalAnalysisService;
         this.dataIngestionService = dataIngestionService;
+        this.backtestingService = backtestingService;
+        this.backtestResultRepository = backtestResultRepository;
     }
 
     @GetMapping("/{symbol}")
@@ -75,6 +86,22 @@ public class StockController {
         dataIngestionService.fetchAndPublishStockData(symbol);
         return "Fetching and publishing data for " + symbol + ". Check console for Kafka messages.";
     }
+
+    @GetMapping("/{symbol}/backtest/sma-crossover")
+    public BacktestResult runSmaCrossoverBacktest(
+            @PathVariable String symbol,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "10000.0") double initialCapital,
+            @RequestParam(defaultValue = "5") int shortSmaPeriod,
+            @RequestParam(defaultValue = "20") int longSmaPeriod) {
+
+        return backtestingService.runSmaCrossoverBacktest(
+                symbol, startDate, endDate, initialCapital, shortSmaPeriod, longSmaPeriod);
+    }
+
+    @GetMapping("/backtest/results")
+    public List<BacktestResult> getAllBacktestResults() {
+        return backtestResultRepository.findAll();
+    }
 }
-
-
