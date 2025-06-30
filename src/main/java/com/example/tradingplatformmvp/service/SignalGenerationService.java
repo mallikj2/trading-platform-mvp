@@ -4,10 +4,12 @@ import com.example.tradingplatformmvp.dto.IndicatorDto;
 import com.example.tradingplatformmvp.dto.MlPredictionDto;
 import com.example.tradingplatformmvp.model.StockData;
 import com.example.tradingplatformmvp.model.TradingSignal;
+import com.example.tradingplatformmvp.model.TradingStrategyConfig;
 import com.example.tradingplatformmvp.repository.StockDataRepository;
 import com.example.tradingplatformmvp.repository.TradingSignalRepository;
 import com.example.tradingplatformmvp.strategy.SmaCrossoverStrategy;
 import com.example.tradingplatformmvp.strategy.TradingStrategy;
+import org.springframework.context.ApplicationContext;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -22,41 +24,60 @@ public class SignalGenerationService {
     private final KafkaTemplate<String, TradingSignal> kafkaTemplate;
     private final SimpMessagingTemplate messagingTemplate;
     private final StockDataRepository stockDataRepository;
-    private final SmaCrossoverStrategy smaCrossoverStrategy; // Inject specific strategy
+    private final StrategyConfigService strategyConfigService;
+    private final ApplicationContext applicationContext; // To get strategy beans dynamically
 
     public SignalGenerationService(TradingSignalRepository tradingSignalRepository,
                                    KafkaTemplate<String, TradingSignal> kafkaTemplate,
                                    SimpMessagingTemplate messagingTemplate,
                                    StockDataRepository stockDataRepository,
-                                   SmaCrossoverStrategy smaCrossoverStrategy) {
+                                   StrategyConfigService strategyConfigService,
+                                   ApplicationContext applicationContext) {
         this.tradingSignalRepository = tradingSignalRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.messagingTemplate = messagingTemplate;
         this.stockDataRepository = stockDataRepository;
-        this.smaCrossoverStrategy = smaCrossoverStrategy;
+        this.strategyConfigService = strategyConfigService;
+        this.applicationContext = applicationContext;
     }
 
     @KafkaListener(topics = "stock-indicators-topic", groupId = "trading-platform-group")
     public void consumeIndicatorsAndGenerateSignals(IndicatorDto indicatorDto) {
         System.out.println("SignalGenerationService received indicators: " + indicatorDto.getSymbol() + " - " + indicatorDto.getTimestamp());
 
-        // Fetch historical data for the symbol to build the series for strategy
-        List<StockData> historicalData = stockDataRepository.findBySymbolOrderByTimestampAsc(indicatorDto.getSymbol());
+        List<TradingStrategyConfig> enabledStrategies = strategyConfigService.getAllStrategies();
 
-        // Create a StockData object from the IndicatorDto for strategy processing
-        StockData currentStockData = new StockData();
-        currentStockData.setSymbol(indicatorDto.getSymbol());
-        currentStockData.setTimestamp(indicatorDto.getTimestamp());
-        // Note: Open, High, Low, Volume are not in IndicatorDto, so we use close for simplicity
-        currentStockData.setClose(indicatorDto.getSma()); // Using SMA as close for strategy input
+        for (TradingStrategyConfig config : enabledStrategies) {
+            if (config.isEnabled() && config.getSymbol().equals(indicatorDto.getSymbol())) {
+                try {
+                    // Dynamically get the strategy bean by name
+                    TradingStrategy strategy = (TradingStrategy) applicationContext.getBean(config.getStrategyName().toLowerCase() + "Strategy");
 
-        List<TradingSignal> signals = smaCrossoverStrategy.generateSignals(historicalData, currentStockData);
+                    // Fetch historical data for the symbol to build the series for strategy
+                    List<StockData> historicalData = stockDataRepository.findBySymbolOrderByTimestampAsc(indicatorDto.getSymbol());
 
-        for (TradingSignal signal : signals) {
-            tradingSignalRepository.save(signal);
-            kafkaTemplate.send("trading-signals-topic", signal.getSymbol(), signal);
-            messagingTemplate.convertAndSend("/topic/trading-signals/" + signal.getSymbol(), signal);
-            System.out.println("Generated Signal: " + signal.getDescription());
+                    // Create a StockData object from the IndicatorDto for strategy processing
+                    StockData currentStockData = new StockData();
+                    currentStockData.setSymbol(indicatorDto.getSymbol());
+                    currentStockData.setTimestamp(indicatorDto.getTimestamp());
+                    currentStockData.setOpen(indicatorDto.getSma()); // Placeholder, ideally actual open/high/low/close
+                    currentStockData.setHigh(indicatorDto.getSma());
+                    currentStockData.setLow(indicatorDto.getSma());
+                    currentStockData.setClose(indicatorDto.getSma()); // Using SMA as close for strategy input
+                    currentStockData.setVolume(0); // Placeholder
+
+                    List<TradingSignal> signals = strategy.generateSignals(historicalData, currentStockData);
+
+                    for (TradingSignal signal : signals) {
+                        tradingSignalRepository.save(signal);
+                        kafkaTemplate.send("trading-signals-topic", signal.getSymbol(), signal);
+                        messagingTemplate.convertAndSend("/topic/trading-signals/" + signal.getSymbol(), signal);
+                        System.out.println("Generated Signal: " + signal.getDescription());
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error applying strategy " + config.getStrategyName() + ": " + e.getMessage());
+                }
+            }
         }
     }
 
@@ -90,4 +111,3 @@ public class SignalGenerationService {
         }
     }
 }
-

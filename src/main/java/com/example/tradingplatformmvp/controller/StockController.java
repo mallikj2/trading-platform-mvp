@@ -2,8 +2,10 @@ package com.example.tradingplatformmvp.controller;
 
 import com.example.tradingplatformmvp.model.BacktestResult;
 import com.example.tradingplatformmvp.model.StockData;
+import com.example.tradingplatformmvp.model.SimulatedTrade; // Import SimulatedTrade
 import com.example.tradingplatformmvp.repository.BacktestResultRepository;
 import com.example.tradingplatformmvp.repository.StockDataRepository;
+import com.example.tradingplatformmvp.repository.SimulatedTradeRepository; // Import SimulatedTradeRepository
 import com.example.tradingplatformmvp.service.BacktestingService;
 import com.example.tradingplatformmvp.service.DataIngestionService;
 import com.example.tradingplatformmvp.service.TechnicalAnalysisService;
@@ -26,17 +28,20 @@ public class StockController {
     private final DataIngestionService dataIngestionService;
     private final BacktestingService backtestingService;
     private final BacktestResultRepository backtestResultRepository;
+    private final SimulatedTradeRepository simulatedTradeRepository; // Inject SimulatedTradeRepository
 
     public StockController(StockDataRepository stockDataRepository,
                            TechnicalAnalysisService technicalAnalysisService,
                            DataIngestionService dataIngestionService,
                            BacktestingService backtestingService,
-                           BacktestResultRepository backtestResultRepository) {
+                           BacktestResultRepository backtestResultRepository,
+                           SimulatedTradeRepository simulatedTradeRepository) { // Add to constructor
         this.stockDataRepository = stockDataRepository;
         this.technicalAnalysisService = technicalAnalysisService;
         this.dataIngestionService = dataIngestionService;
         this.backtestingService = backtestingService;
         this.backtestResultRepository = backtestResultRepository;
+        this.simulatedTradeRepository = simulatedTradeRepository; // Assign
     }
 
     @GetMapping("/{symbol}")
@@ -110,5 +115,10 @@ public class StockController {
     @GetMapping("/backtest/results")
     public List<BacktestResult> getAllBacktestResults() {
         return backtestResultRepository.findAll();
+    }
+
+    @GetMapping("/simulated-trades")
+    public List<SimulatedTrade> getAllSimulatedTrades() {
+        return simulatedTradeRepository.findAll();
     }
 }
