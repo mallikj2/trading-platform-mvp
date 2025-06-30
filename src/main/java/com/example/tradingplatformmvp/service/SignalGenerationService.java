@@ -7,6 +7,7 @@ import com.example.tradingplatformmvp.repository.StockDataRepository;
 import com.example.tradingplatformmvp.repository.TradingSignalRepository;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.indicators.SMAIndicator;
@@ -22,6 +23,7 @@ public class SignalGenerationService {
     private final TradingSignalRepository tradingSignalRepository;
     private final KafkaTemplate<String, TradingSignal> kafkaTemplate;
     private final StockDataRepository stockDataRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // Store last SMA values for each symbol to detect crossovers
     private final ConcurrentHashMap<String, Double> lastShortSma = new ConcurrentHashMap<>();
@@ -30,11 +32,13 @@ public class SignalGenerationService {
     public SignalGenerationService(TechnicalAnalysisService technicalAnalysisService,
                                    TradingSignalRepository tradingSignalRepository,
                                    KafkaTemplate<String, TradingSignal> kafkaTemplate,
-                                   StockDataRepository stockDataRepository) {
+                                   StockDataRepository stockDataRepository,
+                                   SimpMessagingTemplate messagingTemplate) {
         this.technicalAnalysisService = technicalAnalysisService;
         this.tradingSignalRepository = tradingSignalRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.stockDataRepository = stockDataRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @KafkaListener(topics = "stock-data-topic", groupId = "trading-platform-group")
@@ -92,6 +96,7 @@ public class SignalGenerationService {
                 buySignal.setDescription(String.format("BUY: Short SMA (%.2f) crossed above Long SMA (%.2f)", currentShortSma, currentLongSma));
                 tradingSignalRepository.save(buySignal);
                 kafkaTemplate.send("trading-signals-topic", buySignal.getSymbol(), buySignal);
+                messagingTemplate.convertAndSend("/topic/trading-signals/" + buySignal.getSymbol(), buySignal);
                 System.out.println("Generated BUY Signal: " + buySignal.getDescription());
             }
             // Sell signal: Short SMA crosses below Long SMA
@@ -104,6 +109,7 @@ public class SignalGenerationService {
                 sellSignal.setDescription(String.format("SELL: Short SMA (%.2f) crossed below Long SMA (%.2f)", currentShortSma, currentLongSma));
                 tradingSignalRepository.save(sellSignal);
                 kafkaTemplate.send("trading-signals-topic", sellSignal.getSymbol(), sellSignal);
+                messagingTemplate.convertAndSend("/topic/trading-signals/" + sellSignal.getSymbol(), sellSignal);
                 System.out.println("Generated SELL Signal: " + sellSignal.getDescription());
             }
         }
