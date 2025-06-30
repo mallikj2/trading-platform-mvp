@@ -1,0 +1,6 @@
+com\example\tradingplatformmvp\StockController.class
+com\example\tradingplatformmvp\StockData.class
+com\example\tradingplatformmvp\TechnicalAnalysisService.class
+com\example\tradingplatformmvp\TradingPlatformMvpApplication.class
+com\example\tradingplatformmvp\StockDataRepository.class
+com\example\tradingplatformmvp\DataIngestionService.class
