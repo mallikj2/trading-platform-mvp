@@ -3,6 +3,7 @@ package com.example.tradingplatformmvp.service;
 import com.example.tradingplatformmvp.dto.StockDataDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -16,13 +17,15 @@ public class DataIngestionService {
 
     private final KafkaTemplate<String, StockDataDto> kafkaTemplate;
     private final WebClient webClient;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${alphavantage.api.key}")
     private String apiKey;
 
-    public DataIngestionService(KafkaTemplate<String, StockDataDto> kafkaTemplate, WebClient.Builder webClientBuilder) {
+    public DataIngestionService(KafkaTemplate<String, StockDataDto> kafkaTemplate, WebClient.Builder webClientBuilder, SimpMessagingTemplate messagingTemplate) {
         this.kafkaTemplate = kafkaTemplate;
         this.webClient = webClientBuilder.baseUrl("https://www.alphavantage.co").build();
+        this.messagingTemplate = messagingTemplate;
     }
 
     public void fetchAndPublishStockData(String symbol) {
@@ -44,7 +47,8 @@ public class DataIngestionService {
                             stockDataDto.setVolume(Long.parseLong(stockDataMap.get("5. volume")));
 
                             kafkaTemplate.send("stock-data-topic", stockDataDto.getSymbol(), stockDataDto);
-                            System.out.println("Sent to Kafka: " + stockDataDto.getSymbol() + " - " + stockDataDto.getTimestamp());
+                            messagingTemplate.convertAndSend("/topic/stock-data/" + stockDataDto.getSymbol(), stockDataDto);
+                            System.out.println("Sent to Kafka and WebSocket: " + stockDataDto.getSymbol() + " - " + stockDataDto.getTimestamp());
                         });
                     } else {
                         System.err.println("Error fetching data for " + symbol + ": " + response.get("Note"));
