@@ -6,6 +6,7 @@ import com.example.tradingplatformmvp.model.StockData;
 import com.example.tradingplatformmvp.repository.StockDataRepository;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBarSeriesBuilder;
@@ -25,10 +26,12 @@ public class TechnicalAnalysisService {
 
     private final StockDataRepository stockDataRepository;
     private final KafkaTemplate<String, IndicatorDto> kafkaTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public TechnicalAnalysisService(StockDataRepository stockDataRepository, KafkaTemplate<String, IndicatorDto> kafkaTemplate) {
+    public TechnicalAnalysisService(StockDataRepository stockDataRepository, KafkaTemplate<String, IndicatorDto> kafkaTemplate, SimpMessagingTemplate messagingTemplate) {
         this.stockDataRepository = stockDataRepository;
         this.kafkaTemplate = kafkaTemplate;
+        this.messagingTemplate = messagingTemplate;
     }
 
     public BarSeries buildBarSeries(List<StockData> stockDataList) {
@@ -124,6 +127,7 @@ public class TechnicalAnalysisService {
         indicatorDto.setMacdHist(macdValues[2]);
 
         kafkaTemplate.send("stock-indicators-topic", indicatorDto.getSymbol(), indicatorDto);
-        System.out.println("Published indicators to Kafka: " + indicatorDto.getSymbol() + " - " + indicatorDto.getTimestamp());
+        messagingTemplate.convertAndSend("/topic/indicators/" + indicatorDto.getSymbol(), indicatorDto);
+        System.out.println("Published indicators to Kafka and WebSocket: " + indicatorDto.getSymbol() + " - " + indicatorDto.getTimestamp());
     }
 }
