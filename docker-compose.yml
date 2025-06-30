@@ -39,7 +39,7 @@ services:
       - "8080:8080"
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      ALPHAVANTAGE_API_KEY: YOUR_ALPHA_VANTAGE_API_KEY # Replace with your actual key
+      ALPHAVANTAGE_API_KEY: S1371TBMC1DNATIX # Replace with your actual key
     depends_on:
       - kafka
 
