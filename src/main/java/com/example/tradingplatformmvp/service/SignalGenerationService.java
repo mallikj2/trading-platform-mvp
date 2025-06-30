@@ -7,6 +7,7 @@ import com.example.tradingplatformmvp.model.TradingSignal;
 import com.example.tradingplatformmvp.model.TradingStrategyConfig;
 import com.example.tradingplatformmvp.repository.StockDataRepository;
 import com.example.tradingplatformmvp.repository.TradingSignalRepository;
+import com.example.tradingplatformmvp.strategy.MlBasedStrategy;
 import com.example.tradingplatformmvp.strategy.SmaCrossoverStrategy;
 import com.example.tradingplatformmvp.strategy.TradingStrategy;
 import org.springframework.context.ApplicationContext;
@@ -26,19 +27,22 @@ public class SignalGenerationService {
     private final StockDataRepository stockDataRepository;
     private final StrategyConfigService strategyConfigService;
     private final ApplicationContext applicationContext; // To get strategy beans dynamically
+    private final MlBasedStrategy mlBasedStrategy;
 
     public SignalGenerationService(TradingSignalRepository tradingSignalRepository,
                                    KafkaTemplate<String, TradingSignal> kafkaTemplate,
                                    SimpMessagingTemplate messagingTemplate,
                                    StockDataRepository stockDataRepository,
                                    StrategyConfigService strategyConfigService,
-                                   ApplicationContext applicationContext) {
+                                   ApplicationContext applicationContext,
+                                   MlBasedStrategy mlBasedStrategy) {
         this.tradingSignalRepository = tradingSignalRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.messagingTemplate = messagingTemplate;
         this.stockDataRepository = stockDataRepository;
         this.strategyConfigService = strategyConfigService;
         this.applicationContext = applicationContext;
+        this.mlBasedStrategy = mlBasedStrategy;
     }
 
     @KafkaListener(topics = "stock-indicators-topic", groupId = "trading-platform-group")
@@ -85,29 +89,13 @@ public class SignalGenerationService {
     public void consumeMlPredictionAndGenerateSignals(MlPredictionDto mlPredictionDto) {
         System.out.println("SignalGenerationService received ML Prediction: " + mlPredictionDto.getSymbol() + " - " + mlPredictionDto.getPrediction());
 
-        // Example: Generate a BUY signal if ML model predicts "BUY" with high confidence
-        if ("BUY".equalsIgnoreCase(mlPredictionDto.getPrediction()) && mlPredictionDto.getConfidence() > 0.7) {
-            TradingSignal buySignal = new TradingSignal();
-            buySignal.setSymbol(mlPredictionDto.getSymbol());
-            buySignal.setTimestamp(mlPredictionDto.getTimestamp());
-            buySignal.setSignalType(TradingSignal.SignalType.BUY);
-            buySignal.setStrategyName("ML_PREDICTION");
-            buySignal.setDescription(String.format("ML BUY: Prediction %s with %.2f confidence", mlPredictionDto.getPrediction(), mlPredictionDto.getConfidence()));
-            tradingSignalRepository.save(buySignal);
-            kafkaTemplate.send("trading-signals-topic", buySignal.getSymbol(), buySignal);
-            messagingTemplate.convertAndSend("/topic/trading-signals/" + buySignal.getSymbol(), buySignal);
-            System.out.println("Generated ML BUY Signal: " + buySignal.getDescription());
-        } else if ("SELL".equalsIgnoreCase(mlPredictionDto.getPrediction()) && mlPredictionDto.getConfidence() > 0.7) {
-            TradingSignal sellSignal = new TradingSignal();
-            sellSignal.setSymbol(mlPredictionDto.getSymbol());
-            sellSignal.setTimestamp(mlPredictionDto.getTimestamp());
-            sellSignal.setSignalType(TradingSignal.SignalType.SELL);
-            sellSignal.setStrategyName("ML_PREDICTION");
-            sellSignal.setDescription(String.format("ML SELL: Prediction %s with %.2f confidence", mlPredictionDto.getPrediction(), mlPredictionDto.getConfidence()));
-            tradingSignalRepository.save(sellSignal);
-            kafkaTemplate.send("trading-signals-topic", sellSignal.getSymbol(), sellSignal);
-            messagingTemplate.convertAndSend("/topic/trading-signals/" + sellSignal.getSymbol(), sellSignal);
-            System.out.println("Generated ML SELL Signal: " + sellSignal.getDescription());
+        List<TradingSignal> signals = mlBasedStrategy.generateSignalsFromMlPrediction(mlPredictionDto);
+
+        for (TradingSignal signal : signals) {
+            tradingSignalRepository.save(signal);
+            kafkaTemplate.send("trading-signals-topic", signal.getSymbol(), signal);
+            messagingTemplate.convertAndSend("/topic/trading-signals/" + signal.getSymbol(), signal);
+            System.out.println("Generated ML Signal: " + signal.getDescription());
         }
     }
 }
