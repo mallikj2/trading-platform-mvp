@@ -1,5 +1,9 @@
-package com.example.tradingplatformmvp;
+package com.example.tradingplatformmvp.service;
 
+import com.example.tradingplatformmvp.model.BacktestResult;
+import com.example.tradingplatformmvp.model.StockData;
+import com.example.tradingplatformmvp.repository.BacktestResultRepository;
+import com.example.tradingplatformmvp.repository.StockDataRepository;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.indicators.SMAIndicator;

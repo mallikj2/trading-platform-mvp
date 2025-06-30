@@ -1,4 +1,4 @@
-package com.example.tradingplatformmvp;
+package com.example.tradingplatformmvp.dto;
 
 import lombok.Data;
 import java.time.LocalDateTime;

@@ -1,5 +1,8 @@
-package com.example.tradingplatformmvp;
+package com.example.tradingplatformmvp.service;
 
+import com.example.tradingplatformmvp.dto.StockDataDto;
+import com.example.tradingplatformmvp.model.StockData;
+import com.example.tradingplatformmvp.repository.StockDataRepository;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 

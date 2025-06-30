@@ -1,4 +1,4 @@
-package com.example.tradingplatformmvp;
+package com.example.tradingplatformmvp.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

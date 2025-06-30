@@ -1,5 +1,12 @@
-package com.example.tradingplatformmvp;
+package com.example.tradingplatformmvp.controller;
 
+import com.example.tradingplatformmvp.model.BacktestResult;
+import com.example.tradingplatformmvp.model.StockData;
+import com.example.tradingplatformmvp.repository.BacktestResultRepository;
+import com.example.tradingplatformmvp.repository.StockDataRepository;
+import com.example.tradingplatformmvp.service.BacktestingService;
+import com.example.tradingplatformmvp.service.DataIngestionService;
+import com.example.tradingplatformmvp.service.TechnicalAnalysisService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

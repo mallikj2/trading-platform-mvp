@@ -1,5 +1,6 @@
-package com.example.tradingplatformmvp;
+package com.example.tradingplatformmvp.service;
 
+import com.example.tradingplatformmvp.dto.StockDataDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -51,4 +52,3 @@ public class DataIngestionService {
                 });
     }
 }
-
