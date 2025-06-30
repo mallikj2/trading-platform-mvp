@@ -4,8 +4,11 @@ import com.example.tradingplatformmvp.dto.StockDataDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -28,6 +31,7 @@ public class DataIngestionService {
         this.messagingTemplate = messagingTemplate;
     }
 
+    @Retryable(value = {WebClientResponseException.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
     public void fetchAndPublishStockData(String symbol) {
         String url = String.format("/query?function=TIME_SERIES_INTRADAY&symbol=%s&interval=1min&apikey=%s", symbol, apiKey);
 
@@ -53,6 +57,10 @@ public class DataIngestionService {
                     } else {
                         System.err.println("Error fetching data for " + symbol + ": " + response.get("Note"));
                     }
+                }, error -> {
+                    System.err.println("Error during Alpha Vantage API call for " + symbol + ": " + error.getMessage());
+                    // Re-throw to trigger retry
+                    throw new WebClientResponseException(error.getMessage(), 500, "Internal Server Error", null, null, null);
                 });
     }
 }

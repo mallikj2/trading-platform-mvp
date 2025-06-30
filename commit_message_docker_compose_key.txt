@@ -1,0 +1,1 @@
+Update Alpha Vantage API key in docker-compose.yml
